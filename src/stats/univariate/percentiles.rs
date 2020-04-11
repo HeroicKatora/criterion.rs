@@ -18,13 +18,22 @@ where
     ///
     /// - Make sure that `p` is in the range `[0, 100]`
     unsafe fn at_unchecked(&self, p: A) -> A {
+        self.at_idx_unchecked(p).2
+    }
+
+    /// Returns the percentile at `p`% and its index.
+    ///
+    /// Safety:
+    ///
+    /// - Make sure that `p` is in the range `[0, 100]`
+    pub(crate) unsafe fn at_idx_unchecked(&self, p: A) -> (usize, usize, A) {
         let _100 = A::cast(100);
         debug_assert!(p >= A::cast(0) && p <= _100);
         debug_assert!(self.0.len() > 0);
         let len = self.0.len() - 1;
 
         if p == _100 {
-            self.0[len]
+            (len, len + 1, self.0[len])
         } else {
             let rank = (p / _100) * A::cast(len);
             let integer = rank.floor();
@@ -33,7 +42,7 @@ where
             let &floor = self.0.get_unchecked(n);
             let &ceiling = self.0.get_unchecked(n + 1);
 
-            floor + (ceiling - floor) * fraction
+            (n, n + 1, floor + (ceiling - floor) * fraction)
         }
     }
 

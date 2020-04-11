@@ -75,6 +75,50 @@ where
         abs_devs.percentiles().median() * A::cast(1.4826)
     }
 
+    /// Returns the median absolute deviation
+    ///
+    /// The `median` can be optionally passed along to speed up (2X) the computation
+    ///
+    /// - Time: `O(length)`
+    /// - Memory: `O(length)`/`O(1)` when percentiles are provided.
+    pub(crate) fn median_abs_dev_with_percentiles(&self, percentiles: Option<Percentiles<A>>) -> A
+    where
+        usize: cast::From<A, Output = Result<usize, cast::Error>>,
+    {
+        let percentiles = percentiles.unwrap_or_else(|| self.percentiles());
+        // `above_idx` is greater or equal the median.
+        let (_, above_idx, median) = unsafe { percentiles.at_idx_unchecked(A::cast(50.)) };
+
+        let mut values: Box<[A]> = unsafe { mem::transmute(percentiles) };
+        values.iter_mut().for_each(|v| *v = (*v - median).abs());
+
+        // Now, values before `below_idx` are monotonically decreasing. Values after that point are
+        // again monotonically increasing. Now, we only want the median thus we don't sort but only
+        // calculate the nth and n+1th element.
+        let median = {
+            // Reverse the values to also be monotonically increasing.  Not a lot of work but means
+            // we access the elements in a natural order when iterating afterwards.
+            values[..above_idx].reverse();
+
+            let rank = A::cast(0.5)*A::cast(values.len());
+            let integer = rank.floor();
+            let fraction = rank - integer;
+            let integer = cast::usize(integer).unwrap();
+
+            let values = itertools::merge(
+                values[..above_idx].iter().copied(),
+                values[above_idx..].iter().copied());
+            let mut values = values.skip(integer);
+
+            let floor = values.next().unwrap();
+            let ceiling = values.next().unwrap();
+
+            floor + (ceiling - floor) * fraction
+        };
+
+        median * A::cast(1.4826)
+    }
+
     /// Returns the median absolute deviation as a percentage of the median
     ///
     /// - Time: `O(length)`

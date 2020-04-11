@@ -299,8 +299,9 @@ fn estimates(avg_times: &Sample<f64>, config: &BenchmarkConfig) -> (Distribution
     fn stats(sample: &Sample<f64>) -> (f64, f64, f64, f64) {
         let mean = sample.mean();
         let std_dev = sample.std_dev(Some(mean));
-        let median = sample.percentiles().median();
-        let mad = sample.median_abs_dev(Some(median));
+        let percentiles = sample.percentiles();
+        let median = percentiles.median();
+        let mad = sample.median_abs_dev_with_percentiles(Some(percentiles));
 
         (mean, std_dev, median, mad)
     }
